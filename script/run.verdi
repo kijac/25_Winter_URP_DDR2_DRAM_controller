@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# Usage: $./run.verdi 1  or  $./run.verdi 2
+STEPN=$1    # 1 or 2
+if [[ "$STEPN" != "1" && "$STEPN" != "2" ]]; then
+    echo "Usage: >$0 1  or  >$0 2"
+    exit 1
+fi
+
+source ./common.sh $STEPN
+
+cd $RUN_DIR
+$VERDI_CMD $VERDI_OPTIONS -f $FILELIST

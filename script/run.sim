@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# Usage: $./run.sim 1  or  $./run.sim 2
+STEPN=$1    # 1 or 2
+if [[ "$STEPN" != "1" && "$STEPN" != "2" ]]; then
+    echo "Usage: >$0 1  or  >$0 2"
+    exit 1
+fi
+
+source ./common.sh $STEPN
+
+if [ -e $RUN_DIR/simv ];
+then
+	cd $RUN_DIR
+	./simv
+else
+	echo "Compile file does not exist"
+	exit 1
+fi
