@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# Usage: $./run_ref.compile
+STEPN=2
+
+export ROOT_PATH="$PWD/.."
+RUN_DIR="${ROOT_PATH}/script/OUTPUT_STEP${STEPN}"
+
+# Use the REF filelist
+FILELIST="${ROOT_PATH}/script/filelist_step2_ref.f"
+
+COMPILE_CMD='vcs'
+COMPILE_OPTIONS='-full64 -sverilog -debug_access+all -kdb +lint=PCWM -LDFLAGS -Wl,--no-as-needed'
+COMPILE_INCDIR="+incdir+${ROOT_PATH}/STEP${STEPN}/RTL+${ROOT_PATH}/STEP${STEPN}/SIM/DDRPHY+${ROOT_PATH}/STEP${STEPN}/SIM/DRAM+${ROOT_PATH}/STEP${STEPN}/SIM/TB"
+
+echo "Cleaning up the old directory"
+rm -rf $RUN_DIR
+echo "Creating a new directory"
+mkdir -p $RUN_DIR
+cd $RUN_DIR
+echo "Compiling"
+$COMPILE_CMD $COMPILE_OPTIONS $COMPILE_INCDIR -f $FILELIST

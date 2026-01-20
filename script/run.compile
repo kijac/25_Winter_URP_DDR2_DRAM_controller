@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# Usage: $./run.compile 1  or  $./run.compile 2
+STEPN=$1    # 1 or 2
+if [[ "$STEPN" != "1" && "$STEPN" != "2" ]]; then
+    echo "Usage: >$0 1  or  >$0 2"
+    exit 1
+fi
+
+source ./common.sh $STEPN
+
+echo "Cleaning up the old directory"
+rm -rf $RUN_DIR
+echo "Creating a new directory"
+mkdir -p $RUN_DIR
+cd $RUN_DIR
+echo "Compiling"
+$COMPILE_CMD $COMPILE_OPTIONS $COMPILE_INCDIR -f $FILELIST
