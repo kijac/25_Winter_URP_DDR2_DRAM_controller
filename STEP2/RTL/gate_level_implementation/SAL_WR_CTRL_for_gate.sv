@@ -118,9 +118,9 @@ module SAL_WR_CTRL
     //----------------------------------------------------------
     // AXI B path
     //----------------------------------------------------------
-    // return a write response when the write request is forwarded to the address decoder
-    // This ensures that the write request is "safe" in the decoder (or waiting for it)
-    // before the master receives the completion response.
+    // return a write response on receiving into the wdata FIFO
+    // : it is okay because after the wdata FIFO, there's no reordering
+    // in this implementation.
     wire                                bid_fifo_empty;
     SAL_FIFO
     #(
@@ -133,8 +133,8 @@ module SAL_WR_CTRL
         .rst_n                          (rst_n),
         .full_o                         (/* NC */),
         .afull_o                        (/* NC */),
-        .wren_i                         (axi_aw2_if.avalid & axi_aw2_if.aready),
-        .wdata_i                        (axi_aw2_if.aid),
+        .wren_i                         (axi_w_if.wvalid & axi_w_if.wready & axi_w_if.wlast),
+        .wdata_i                        (axi_w_if.wid),
 
         .empty_o                        (bid_fifo_empty),
         .aempty_o                       (/* NC */),

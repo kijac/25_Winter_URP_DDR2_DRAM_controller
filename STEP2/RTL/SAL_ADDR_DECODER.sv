@@ -55,20 +55,68 @@ module SAL_ADDR_DECODER
     endgenerate
     assign full = &valid_vec;
 
-    // AXI Ready signals Generation
-    // Give priority to WRITE if both valid (to drain write buffer), 
-    // but only if we have space.
+    // AXI Ready signals Generation (Arbitration: Inertia + Starvation Prevention)
     logic aw_grant, ar_grant;
+    
+    // Arbitration State
+    logic       last_alloc_wr;
+    logic [3:0] starve_cnt;
+    localparam  STARVE_LIMIT = 4'd8; 
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            last_alloc_wr <= 1'b0;
+            starve_cnt    <= '0;
+        end else begin
+            // Update Direction & Starvation Counter
+            if (aw_grant && axi_ar_if.avalid) begin
+                // Granted Write while Read was waiting
+                if (last_alloc_wr) begin
+                    if (starve_cnt < STARVE_LIMIT) starve_cnt <= starve_cnt + 1;
+                end else begin
+                    starve_cnt <= 4'd1;
+                end
+                last_alloc_wr <= 1'b1;
+            end else if (ar_grant && axi_aw_if.avalid) begin
+                // Granted Read while Write was waiting
+                if (!last_alloc_wr) begin
+                    if (starve_cnt < STARVE_LIMIT) starve_cnt <= starve_cnt + 1;
+                end else begin
+                    starve_cnt <= 4'd1;
+                end
+                last_alloc_wr <= 1'b0;
+            end else if (aw_grant) begin
+                // Granted Write (No Read waiting)
+                last_alloc_wr <= 1'b1;
+                starve_cnt    <= '0;
+            end else if (ar_grant) begin
+                // Granted Read (No Write waiting)
+                last_alloc_wr <= 1'b0;
+                starve_cnt    <= '0;
+            end
+        end
+    end
     
     always_comb begin
         aw_grant = 1'b0;
         ar_grant = 1'b0;
 
         if (!full) begin
-           if (axi_aw_if.avalid) begin
-               aw_grant = 1'b1; // Write takes priority / or Low Watermark logic here
+           if (axi_ar_if.avalid && axi_aw_if.avalid) begin
+               // Collision: Determine Priority
+               if (starve_cnt >= STARVE_LIMIT) begin
+                   // Force Switch (Starvation Avoidance)
+                   if (last_alloc_wr) ar_grant = 1'b1; // Was Writing, force Read
+                   else               aw_grant = 1'b1; // Was Reading, force Write
+               end else begin
+                   // Inertia (Follow last direction)
+                   if (last_alloc_wr) aw_grant = 1'b1;
+                   else               ar_grant = 1'b1;
+               end
            end else if (axi_ar_if.avalid) begin
                ar_grant = 1'b1;
+           end else if (axi_aw_if.avalid) begin
+               aw_grant = 1'b1;
            end
         end
     end
@@ -203,19 +251,7 @@ module SAL_ADDR_DECODER
         end else begin
             
             // Allocation (Input)
-            if (aw_grant) begin // Write Accepted
-                rob[alloc_ptr].valid     <= 1'b1;
-                rob[alloc_ptr].wr        <= 1'b1;
-                rob[alloc_ptr].id        <= axi_aw_if.aid;
-                rob[alloc_ptr].len       <= axi_aw_if.alen;
-                rob[alloc_ptr].addr      <= axi_aw_if.aaddr;
-                rob[alloc_ptr].seq_num   <= global_seq_num;
-                rob[alloc_ptr].target_ba <= get_dram_ba(axi_aw_if.aaddr);
-                rob[alloc_ptr].target_ra <= get_dram_ra(axi_aw_if.aaddr);
-                rob[alloc_ptr].target_ca <= get_dram_ca(axi_aw_if.aaddr);
-                
-                global_seq_num           <= global_seq_num + 1;
-            end else if (ar_grant) begin // Read Accepted
+            if (ar_grant) begin // Read Accepted
                 rob[alloc_ptr].valid     <= 1'b1;
                 rob[alloc_ptr].wr        <= 1'b0;
                 rob[alloc_ptr].id        <= axi_ar_if.aid;
@@ -225,6 +261,18 @@ module SAL_ADDR_DECODER
                 rob[alloc_ptr].target_ba <= get_dram_ba(axi_ar_if.aaddr);
                 rob[alloc_ptr].target_ra <= get_dram_ra(axi_ar_if.aaddr);
                 rob[alloc_ptr].target_ca <= get_dram_ca(axi_ar_if.aaddr);
+                
+                global_seq_num           <= global_seq_num + 1;
+            end else if (aw_grant) begin // Write Accepted
+                rob[alloc_ptr].valid     <= 1'b1;
+                rob[alloc_ptr].wr        <= 1'b1;
+                rob[alloc_ptr].id        <= axi_aw_if.aid;
+                rob[alloc_ptr].len       <= axi_aw_if.alen;
+                rob[alloc_ptr].addr      <= axi_aw_if.aaddr;
+                rob[alloc_ptr].seq_num   <= global_seq_num;
+                rob[alloc_ptr].target_ba <= get_dram_ba(axi_aw_if.aaddr);
+                rob[alloc_ptr].target_ra <= get_dram_ra(axi_aw_if.aaddr);
+                rob[alloc_ptr].target_ca <= get_dram_ca(axi_aw_if.aaddr);
                 
                 global_seq_num           <= global_seq_num + 1;
             end

@@ -21,11 +21,9 @@ module SAL_SCHED
     SCHED_IF.SCHED              sched_if
 );
 
-
     //Our code
     // 1. Parameters & Localparams
     localparam STARVATION_LIMIT = 8'd16; // Fixed at 16 per user requirement
-    localparam REF_INTERVAL_VAL = 32'd3120; // 7.8us / 2.5ns = 3120 cycles
 
     // 2. Global Timing Counters
     
@@ -263,14 +261,6 @@ module SAL_SCHED
             winner_oh[winner_idx] = 1'b1;
         end
     end
-
-    // RR Pointer Update Removed
-    /*
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) rr_ptr <= '0;
-        else if (|winner_oh) rr_ptr <= rr_ptr + 1; // Simple increment is fair enough
-    end
-    */
 
     // 5. Output Grant Generation
     logic [bk_cnt-1:0] all_ref_reqs;

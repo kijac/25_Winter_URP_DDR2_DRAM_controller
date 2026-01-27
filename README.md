@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # 25_Winter_URP_DDR2_DRAM_controller
 =======
 # DDR2 Controller Project
